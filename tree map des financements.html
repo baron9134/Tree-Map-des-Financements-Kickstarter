@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tree Map des Financements Kickstarter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f4f4f4;
+      padding-top: 50px;
+    }
+
+    #title {
+      font-size: 2.5em;
+      margin-bottom: 20px;
+    }
+
+    #description {
+      font-size: 1.2em;
+      color: #666;
+      margin-bottom: 30px;
+    }
+
+    #treemap {
+      width: 80%;
+      height: 600px;
+      margin: 0 auto;
+    }
+
+    #legend {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .legend-item {
+      width: 30px;
+      height: 20px;
+      margin: 5px;
+    }
+
+    #tooltip {
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      visibility: hidden;
+    }
+
+    .hidden {
+      visibility: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <h1 id="title">Tree Map des Financements Kickstarter</h1>
+    <p id="description">Explorez les projets Kickstarter financés et leur montant de financement à travers ce Tree Map interactif.</p>
+    <div id="treemap"></div>
+    <div id="legend"></div>
+    <div id="tooltip" class="hidden"></div>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+  <script>
+    const width = 900;
+    const height = 600;
+    const format = d3.format(",d");
+
+    const svg = d3.select("#treemap")
+                  .append("svg")
+                  .attr("width", width)
+                  .attr("height", height);
+
+    const tooltip = d3.select("#tooltip");
+
+    const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+    // Charger les données
+    d3.json("https://cdn.freecodecamp.org/testable-projects-fcc/data/tree_map/kickstarter-funding-data.json").then(data => {
+      // Création du TreeMap
+      const root = d3.hierarchy(data)
+                    .sum(d => d.value)
+                    .sort((a, b) => b.value - a.value);
+
+      d3.treemap()
+        .size([width, height])
+        .padding(1)
+        .round(true)(root);
+
+      // Ajouter les rectangles du TreeMap
+      const tiles = svg.selectAll(".tile")
+                       .data(root.leaves())
+                       .enter()
+                       .append("g")
+                       .attr("class", "tile")
+                       .attr("transform", d => `translate(${d.x0}, ${d.y0})`);
+
+      tiles.append("rect")
+           .attr("class", "tile")
+           .attr("width", d => d.x1 - d.x0)
+           .attr("height", d => d.y1 - d.y0)
+           .style("fill", d => colorScale(d.data.category))
+           .attr("data-name", d => d.data.name)
+           .attr("data-category", d => d.data.category)
+           .attr("data-value", d => d.data.value)
+           .on("mouseover", function(event, d) {
+             tooltip.transition().duration(200).style("visibility", "visible");
+             tooltip.html(`${d.data.name}: $${format(d.data.value)}`)
+                    .attr("data-value", d.data.value)
+                    .style("left", event.pageX + "px")
+                    .style("top", event.pageY - 28 + "px");
+           })
+           .on("mouseout", function() {
+             tooltip.transition().duration(200).style("visibility", "hidden");
+           });
+
+      tiles.append("text")
+           .attr("x", 5)
+           .attr("y", 15)
+           .attr("fill", "white")
+           .text(d => d.data.name.length > 15 ? d.data.name.substring(0, 15) + "..." : d.data.name);
+
+      // Ajouter la légende
+      const categories = [...new Set(data.children.map(d => d.name))];
+      const legend = d3.select("#legend");
+
+      categories.forEach((category, index) => {
+        const legendItem = legend.append("div").attr("class", "legend-item");
+        legendItem.style("background-color", colorScale(category));
+      });
+    });
+  </script>
+</body>
+</html>
